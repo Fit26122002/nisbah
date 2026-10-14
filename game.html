@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengembaraan Safari: Belajar Nisbah!</title>
+    <!-- Memuatkan Tailwind CSS melalui CDN untuk penggayaan pantas dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Menggunakan font yang mesra kanak-kanak dari Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Fredoka', sans-serif;
+            /* Latar belakang tema safari/rimba */
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#bbf7d0 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+
+        /* Animasi gegar (shake) untuk jawapan yang salah */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Animasi pop untuk jawapan yang betul */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .pop-animation {
+            animation: pop 0.4s ease-in-out;
+        }
+
+        /* Gaya untuk efek konfeti apabila menang */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: #f2d74e;
+            top: -10px;
+            z-index: 50;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white max-w-3xl w-full rounded-[2rem] shadow-2xl border-8 border-green-500 overflow-hidden relative">
+        
+        <!-- Pengepala (Header) -->
+        <div class="bg-green-500 text-white p-4 text-center relative">
+            <h1 class="text-3xl sm:text-4xl font-bold drop-shadow-md">🦁 Safari Nisbah 🐘</h1>
+            <!-- Paparan Skor -->
+            <div id="scoreDisplay" class="absolute top-4 right-4 bg-yellow-400 text-green-900 font-bold px-4 py-2 rounded-full shadow-md hidden">
+                Skor Tepat: <span id="scoreValue">0</span>
+            </div>
+        </div>
+
+        <!-- SKRIN UTAMA (Mula Permainan) -->
+        <div id="startScreen" class="p-8 text-center flex flex-col items-center justify-center min-h-[400px]">
+            <div class="text-6xl mb-4">🐒🦓🦒</div>
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Selamat Datang ke Taman Safari!</h2>
+            <p class="text-lg text-gray-600 mb-8 max-w-md">
+                Mari belajar nisbah bersama haiwan-haiwan safari. Jawab soalan yang diberikan. Jangan risau jika salah, anda boleh <strong>cuba berkali-kali</strong> tanpa had!
+            </p>
+            <button onclick="startGame()" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-2xl font-bold py-4 px-10 rounded-full shadow-[0_6px_0_#ca8a04] active:shadow-[0_0px_0_#ca8a04] active:translate-y-[6px] transition-all">
+                Mula Bermain!
+            </button>
+        </div>
+
+        <!-- SKRIN PERMAINAN (Soalan & Jawapan) -->
+        <div id="gameScreen" class="p-6 sm:p-8 hidden flex-col items-center min-h-[400px]">
+            
+            <!-- Visual Haiwan -->
+            <div class="bg-blue-50 w-full rounded-2xl p-6 mb-6 border-4 border-blue-200 flex justify-center items-center gap-8 flex-wrap">
+                <div id="groupA" class="flex flex-wrap justify-center gap-2 text-4xl sm:text-5xl">
+                    <!-- Haiwan Kumpulan A akan dijana di sini -->
+                </div>
+                <!-- Garisan pemisah -->
+                <div class="w-1 bg-blue-300 h-16 rounded-full hidden sm:block"></div>
+                <div id="groupB" class="flex flex-wrap justify-center gap-2 text-4xl sm:text-5xl">
+                    <!-- Haiwan Kumpulan B akan dijana di sini -->
+                </div>
+            </div>
+
+            <!-- Teks Soalan -->
+            <h3 id="questionText" class="text-xl sm:text-2xl font-bold text-gray-800 text-center mb-6">
+                <!-- Soalan akan dipaparkan di sini secara dinamik -->
+            </h3>
+
+            <!-- Maklum Balas Visual (Betul/Salah) -->
+            <div id="feedbackMessage" class="text-xl font-bold text-center mb-4 h-8 transition-opacity duration-300 opacity-0">
+                <!-- Ruang untuk mesej "Syabas" atau "Cuba lagi" -->
+            </div>
+
+            <!-- Pilihan Jawapan -->
+            <div id="optionsContainer" class="grid grid-cols-2 gap-4 w-full max-w-lg mb-6">
+                <!-- Butang jawapan akan dijana di sini -->
+            </div>
+
+            <!-- Butang Seterusnya (Akan tersembunyi sehingga jawab betul) -->
+            <button id="nextBtn" onclick="nextQuestion()" class="hidden bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-3 px-8 rounded-full shadow-[0_5px_0_#166534] active:shadow-none active:translate-y-[5px] transition-all">
+                Soalan Seterusnya ➔
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // Data Haiwan Safari menggunakan Emoji supaya ringan dan tidak perlukan fail imej luar
+        const haiwan = [
+            { nama: "Singa", emoji: "🦁" },
+            { nama: "Gajah", emoji: "🐘" },
+            { nama: "Monyet", emoji: "🐒" },
+            { nama: "Zirafah", emoji: "🦒" },
+            { nama: "Kuda Belang", emoji: "🦓" },
+            { nama: "Harimau", emoji: "🐯" }
+        ];
+
+        // Pembolehubah (State) Permainan
+        let skorTepat = 0; 
+        let cubaanSemasa = 0; 
+        let jawapanBetulSemasa = "";
+        
+        // Pautan ke elemen-elemen DOM
+        const startScreen = document.getElementById('startScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const scoreValue = document.getElementById('scoreValue');
+        const groupA = document.getElementById('groupA');
+        const groupB = document.getElementById('groupB');
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const nextBtn = document.getElementById('nextBtn');
+
+        // Fungsi Memulakan Permainan
+        function startGame() {
+            startScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            gameScreen.classList.add('flex');
+            scoreDisplay.classList.remove('hidden');
+            skorTepat = 0;
+            updateScoreDisplay();
+            generateQuestion();
+        }
+
+        // Fungsi Menjana Soalan Rawak
+        function generateQuestion() {
+            // Reset keadaan antaramuka pengguna
+            cubaanSemasa = 0;
+            feedbackMessage.style.opacity = '0';
+            nextBtn.classList.add('hidden');
+            optionsContainer.innerHTML = '';
+
+            // 1. Pilih dua jenis haiwan yang berbeza
+            let h1 = haiwan[Math.floor(Math.random() * haiwan.length)];
+            let h2;
+            do {
+                h2 = haiwan[Math.floor(Math.random() * haiwan.length)];
+            } while (h1.nama === h2.nama);
+
+            // 2. Tentukan kuantiti rawak untuk setiap haiwan (1 hingga 8 ekor)
+            let jumlah1 = Math.floor(Math.random() * 8) + 1;
+            let jumlah2 = Math.floor(Math.random() * 8) + 1;
+            let jumlahSemua = jumlah1 + jumlah2;
+
+            // 3. Paparkan visual haiwan pada skrin
+            groupA.innerHTML = '';
+            for(let i=0; i<jumlah1; i++) groupA.innerHTML += `<span>${h1.emoji}</span>`;
+            
+            groupB.innerHTML = '';
+            for(let i=0; i<jumlah2; i++) groupB.innerHTML += `<span>${h2.emoji}</span>`;
+
+            // 4. Pilih struktur soalan secara rawak (Uji pemahaman nisbah a:b atau a:jumlah)
+            let jenisSoalan = Math.floor(Math.random() * 3);
+            let soalan = "";
+            
+            if (jenisSoalan === 0) {
+                soalan = `Apakah nisbah bilangan <strong>${h1.nama}</strong> kepada bilangan <strong>${h2.nama}</strong>?`;
+                jawapanBetulSemasa = `${jumlah1}:${jumlah2}`;
+            } else if (jenisSoalan === 1) {
+                soalan = `Apakah nisbah bilangan <strong>${h2.nama}</strong> kepada bilangan <strong>${h1.nama}</strong>?`;
+                jawapanBetulSemasa = `${jumlah2}:${jumlah1}`;
+            } else {
+                soalan = `Apakah nisbah bilangan <strong>${h1.nama}</strong> kepada <strong>jumlah keseluruhan</strong> haiwan?`;
+                jawapanBetulSemasa = `${jumlah1}:${jumlahSemua}`;
+            }
+
+            questionText.innerHTML = soalan;
+
+            // 5. Jana pilihan jawapan (1 jawapan tepat, 3 jawapan pengeliru)
+            let pilihan = [jawapanBetulSemasa];
+            let pengganggu = [
+                `${jumlah2}:${jumlah1}`,
+                `${jumlah1}:${jumlahSemua}`,
+                `${jumlah2}:${jumlahSemua}`,
+                `${jumlahSemua}:${jumlah1}`,
+                `${jumlah1 + 1}:${jumlah2}`,
+                `${jumlah1}:${jumlah2 + 1}`
+            ];
+
+            // Pastikan tiada jawapan pengganggu yang sama dengan jawapan betul
+            pengganggu = pengganggu.filter(p => p !== jawapanBetulSemasa);
+            
+            // Susun rawak jawapan pengeliru dan ambil 3 yang pertama
+            pengganggu.sort(() => Math.random() - 0.5);
+            pilihan.push(pengganggu[0], pengganggu[1], pengganggu[2]);
+
+            // Susun rawak semula kedudukan keempat-empat butang
+            pilihan.sort(() => Math.random() - 0.5);
+
+            // Bina butang HTML untuk setiap pilihan
+            pilihan.forEach(teks => {
+                const btn = document.createElement('button');
+                btn.className = "bg-blue-100 hover:bg-blue-200 border-2 border-blue-400 text-blue-900 text-2xl font-bold py-4 rounded-xl transition-all shadow-sm active:scale-95";
+                btn.innerText = teks;
+                btn.onclick = () => checkAnswer(teks, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // Fungsi Menyemak Jawapan yang Diklik
+        function checkAnswer(jawapanDipilih, butangElemen) {
+            // Jika soalan ini sudah dijawab dengan betul, sekat klik tambahan
+            if (!nextBtn.classList.contains('hidden')) return; 
+
+            if (jawapanDipilih === jawapanBetulSemasa) {
+                // TINDAKAN JIKA JAWAPAN BETUL
+                butangElemen.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'border-blue-400');
+                butangElemen.classList.add('bg-green-500', 'text-white', 'border-green-600', 'pop-animation');
+                
+                feedbackMessage.innerHTML = "🎉 Syabas! Jawapan Tepat! 🎉";
+                feedbackMessage.className = "text-2xl font-bold text-center mb-4 h-8 text-green-600 transition-opacity duration-300 opacity-100";
+                
+                // Tambah skor HANYA jika ia adalah cubaan kali pertama
+                if (cubaanSemasa === 0) {
+                    skorTepat++;
+                    updateScoreDisplay();
+                }
+
+                fireConfetti(); // Pancarkan konfeti
+                nextBtn.classList.remove('hidden'); // Tunjuk butang "Soalan Seterusnya"
+
+                // Malapkan butang lain yang tidak dipilih
+                Array.from(optionsContainer.children).forEach(btn => {
+                    if (btn !== butangElemen) {
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                });
+
+            } else {
+                // TINDAKAN JIKA JAWAPAN SALAH (Sistem Cubaan Tanpa Had)
+                cubaanSemasa++;
+                
+                butangElemen.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'border-blue-400');
+                butangElemen.classList.add('bg-red-400', 'text-white', 'border-red-600', 'shake-animation');
+                
+                feedbackMessage.innerHTML = "Oops! Cuba lagi! 💪";
+                feedbackMessage.className = "text-xl font-bold text-center mb-4 h-8 text-red-500 transition-opacity duration-300 opacity-100";
+
+                // Padam animasi gegar selepas selesai agar boleh bergegar semula pada masa hadapan
+                setTimeout(() => {
+                    butangElemen.classList.remove('shake-animation');
+                }, 400);
+            }
+        }
+
+        // Kemas kini angka skor pada skrin
+        function updateScoreDisplay() {
+            scoreValue.innerText = skorTepat;
+        }
+
+        // Pergi ke soalan seterusnya
+        function nextQuestion() {
+            generateQuestion();
+        }
+
+        // Fungsi menjana elemen konfeti menggunakan CSS dan JS Vanilla
+        function fireConfetti() {
+            const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+            for (let i = 0; i < 40; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                // Posisi jatuh secara rawak
+                confetti.style.left = Math.random() * 100 + 'vw';
+                // Warna rawak
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                // Kelajuan jatuh dan putaran yang pelbagai
+                confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+                
+                // Saiz konfeti yang pelbagai
+                const size = Math.random() * 10 + 5;
+                confetti.style.width = size + 'px';
+                confetti.style.height = size + 'px';
+                
+                document.body.appendChild(confetti);
+                
+                // Bersihkan elemen konfeti dari DOM selepas animasi selesai
+                setTimeout(() => {
+                    confetti.remove();
+                }, 4000);
+            }
+        }
+    </script>
+</body>
+</html>
